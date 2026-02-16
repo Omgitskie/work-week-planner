@@ -3,8 +3,10 @@ import { useAppData } from '@/context/AppContext';
 import { getDaysInYear } from '@/lib/store';
 import { AbsenceType } from '@/lib/types';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ChevronDown } from 'lucide-react';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -14,7 +16,7 @@ const STICKY_W = 220; // name + store columns total
 export default function CalendarView() {
   const { data, addAbsences, removeAbsence } = useAppData();
   const [filterName, setFilterName] = useState('');
-  const [filterStore, setFilterStore] = useState('all');
+  const [filterStores, setFilterStores] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const days = useMemo(() => getDaysInYear(data.year), [data.year]);
@@ -38,12 +40,14 @@ export default function CalendarView() {
   }, [data.absences]);
 
   const employees = useMemo(() => {
-    return data.employees.filter(e => {
-      const nameMatch = e.name.toLowerCase().includes(filterName.toLowerCase());
-      const storeMatch = filterStore === 'all' || e.store === filterStore;
-      return nameMatch && storeMatch;
-    });
-  }, [data.employees, filterName, filterStore]);
+    return data.employees
+      .filter(e => {
+        const nameMatch = e.name.toLowerCase().includes(filterName.toLowerCase());
+        const storeMatch = filterStores.length === 0 || filterStores.includes(e.store);
+        return nameMatch && storeMatch;
+      })
+      .sort((a, b) => a.store.localeCompare(b.store) || a.name.localeCompare(b.name));
+  }, [data.employees, filterName, filterStores]);
 
   const scrollToMonth = (monthIdx: number) => {
     const group = monthGroups.find(g => g.month === monthIdx);
@@ -74,17 +78,34 @@ export default function CalendarView() {
           onChange={e => setFilterName(e.target.value)}
           className="w-48 h-8 text-sm"
         />
-        <Select value={filterStore} onValueChange={setFilterStore}>
-          <SelectTrigger className="w-40 h-8 text-sm">
-            <SelectValue placeholder="All stores" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Stores</SelectItem>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-48 h-8 text-sm justify-between">
+              {filterStores.length === 0 ? 'All Stores' : `${filterStores.length} store${filterStores.length > 1 ? 's' : ''}`}
+              <ChevronDown className="w-4 h-4 ml-1 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-48 p-2" align="start">
             {data.stores.map(s => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
+              <label key={s} className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-accent rounded">
+                <Checkbox
+                  checked={filterStores.includes(s)}
+                  onCheckedChange={(checked) => {
+                    setFilterStores(prev =>
+                      checked ? [...prev, s] : prev.filter(x => x !== s)
+                    );
+                  }}
+                />
+                {s}
+              </label>
             ))}
-          </SelectContent>
-        </Select>
+            {filterStores.length > 0 && (
+              <Button variant="ghost" size="sm" className="w-full mt-1 h-7 text-xs" onClick={() => setFilterStores([])}>
+                Clear all
+              </Button>
+            )}
+          </PopoverContent>
+        </Popover>
         <div className="flex gap-1 ml-auto flex-wrap">
           {MONTHS.map((m, i) => (
             <Button

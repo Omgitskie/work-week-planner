@@ -47,6 +47,27 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        holiday: {
+          DEFAULT: "hsl(var(--holiday))",
+          foreground: "hsl(var(--holiday-foreground))",
+          bg: "hsl(var(--holiday-bg))",
+        },
+        sick: {
+          DEFAULT: "hsl(var(--sick))",
+          foreground: "hsl(var(--sick-foreground))",
+          bg: "hsl(var(--sick-bg))",
+        },
+        personal: {
+          DEFAULT: "hsl(var(--personal))",
+          foreground: "hsl(var(--personal-foreground))",
+          bg: "hsl(var(--personal-bg))",
+        },
+        grid: {
+          line: "hsl(var(--grid-line))",
+          header: "hsl(var(--grid-header))",
+          sticky: "hsl(var(--grid-sticky))",
+        },
+        weekend: "hsl(var(--weekend-bg))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

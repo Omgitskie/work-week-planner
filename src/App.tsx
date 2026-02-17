@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppProvider } from "@/context/AppContext";
+import PasswordGate from "@/components/PasswordGate";
 import Layout from "@/components/Layout";
 import CalendarView from "@/pages/CalendarView";
 import SummaryView from "@/pages/SummaryView";
@@ -18,19 +19,21 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <AppProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<CalendarView />} />
-              <Route path="/summary" element={<SummaryView />} />
-              <Route path="/book" element={<BookTimeOff />} />
-              <Route path="/employees" element={<EmployeeManager />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AppProvider>
+      <PasswordGate>
+        <AppProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<CalendarView />} />
+                <Route path="/summary" element={<SummaryView />} />
+                <Route path="/book" element={<BookTimeOff />} />
+                <Route path="/employees" element={<EmployeeManager />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AppProvider>
+      </PasswordGate>
     </TooltipProvider>
   </QueryClientProvider>
 );

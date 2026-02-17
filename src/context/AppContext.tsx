@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { AppData, Employee, AbsenceRecord } from '@/lib/types';
-import { loadData, saveData, generateId } from '@/lib/store';
+import { AppData, Employee, AbsenceRecord, AbsenceType } from '@/lib/types';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AppContextType {
   data: AppData;
+  loading: boolean;
   addEmployee: (name: string, store: string) => void;
   updateEmployee: (id: string, name: string, store: string) => void;
   removeEmployee: (id: string) => void;
@@ -17,27 +18,58 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<AppData>(loadData);
+  const [data, setData] = useState<AppData>({
+    employees: [],
+    absences: [],
+    stores: [],
+    year: 2026,
+  });
+  const [loading, setLoading] = useState(true);
 
+  // Load all data from Supabase on mount
   useEffect(() => {
-    saveData(data);
-  }, [data]);
+    async function fetchAll() {
+      const [empRes, absRes, storeRes] = await Promise.all([
+        supabase.from('employees').select('*').order('name'),
+        supabase.from('absences').select('*'),
+        supabase.from('stores').select('*').order('name'),
+      ]);
 
-  const addEmployee = useCallback((name: string, store: string) => {
+      setData(prev => ({
+        ...prev,
+        employees: (empRes.data || []).map(e => ({ id: e.id, name: e.name, store: e.store })),
+        absences: (absRes.data || []).map(a => ({ employeeId: a.employee_id, date: a.date, type: a.type as AbsenceType })),
+        stores: (storeRes.data || []).map(s => s.name),
+      }));
+      setLoading(false);
+    }
+    fetchAll();
+  }, []);
+
+  const addEmployee = useCallback(async (name: string, store: string) => {
+    const { data: inserted, error } = await supabase
+      .from('employees')
+      .insert({ name, store })
+      .select()
+      .single();
+    if (error || !inserted) return;
     setData(prev => ({
       ...prev,
-      employees: [...prev.employees, { id: generateId(), name, store }],
+      employees: [...prev.employees, { id: inserted.id, name: inserted.name, store: inserted.store }],
     }));
   }, []);
 
-  const updateEmployee = useCallback((id: string, name: string, store: string) => {
+  const updateEmployee = useCallback(async (id: string, name: string, store: string) => {
+    await supabase.from('employees').update({ name, store }).eq('id', id);
     setData(prev => ({
       ...prev,
       employees: prev.employees.map(e => (e.id === id ? { ...e, name, store } : e)),
     }));
   }, []);
 
-  const removeEmployee = useCallback((id: string) => {
+  const removeEmployee = useCallback(async (id: string) => {
+    await supabase.from('employees').delete().eq('id', id);
+    // absences cascade-deleted in DB
     setData(prev => ({
       ...prev,
       employees: prev.employees.filter(e => e.id !== id),
@@ -45,13 +77,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
-  const addAbsences = useCallback((employeeId: string, type: AbsenceRecord['type'], dates: string[]) => {
+  const addAbsences = useCallback(async (employeeId: string, type: AbsenceRecord['type'], dates: string[]) => {
+    // Upsert absences (unique on employee_id + date)
+    const rows = dates.map(d => ({ employee_id: employeeId, date: d, type }));
+    await supabase.from('absences').upsert(rows, { onConflict: 'employee_id,date' });
+
     setData(prev => {
       const existing = new Set(prev.absences.filter(a => a.employeeId === employeeId).map(a => a.date));
       const newAbsences = dates
         .filter(d => !existing.has(d))
         .map(d => ({ employeeId, date: d, type }));
-      // Also update any existing absences for these dates
       const updatedAbsences = prev.absences.map(a => {
         if (a.employeeId === employeeId && dates.includes(a.date)) {
           return { ...a, type };
@@ -62,21 +97,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const removeAbsence = useCallback((employeeId: string, date: string) => {
+  const removeAbsence = useCallback(async (employeeId: string, date: string) => {
+    await supabase.from('absences').delete().eq('employee_id', employeeId).eq('date', date);
     setData(prev => ({
       ...prev,
       absences: prev.absences.filter(a => !(a.employeeId === employeeId && a.date === date)),
     }));
   }, []);
 
-  const addStore = useCallback((store: string) => {
+  const addStore = useCallback(async (store: string) => {
+    await supabase.from('stores').insert({ name: store });
     setData(prev => ({
       ...prev,
       stores: [...prev.stores, store],
     }));
   }, []);
 
-  const removeStore = useCallback((store: string) => {
+  const removeStore = useCallback(async (store: string) => {
+    await supabase.from('stores').delete().eq('name', store);
     setData(prev => ({
       ...prev,
       stores: prev.stores.filter(s => s !== store),
@@ -88,7 +126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AppContext.Provider value={{ data, addEmployee, updateEmployee, removeEmployee, addAbsences, removeAbsence, addStore, removeStore, setYear }}>
+    <AppContext.Provider value={{ data, loading, addEmployee, updateEmployee, removeEmployee, addAbsences, removeAbsence, addStore, removeStore, setYear }}>
       {children}
     </AppContext.Provider>
   );

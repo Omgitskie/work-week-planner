@@ -49,18 +49,21 @@ export type Database = {
       employees: {
         Row: {
           created_at: string
+          entitlement: number
           id: string
           name: string
           store: string
         }
         Insert: {
           created_at?: string
+          entitlement?: number
           id?: string
           name: string
           store: string
         }
         Update: {
           created_at?: string
+          entitlement?: number
           id?: string
           name?: string
           store?: string

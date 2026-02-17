@@ -5,8 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 interface AppContextType {
   data: AppData;
   loading: boolean;
-  addEmployee: (name: string, store: string) => void;
-  updateEmployee: (id: string, name: string, store: string) => void;
+  addEmployee: (name: string, store: string, entitlement?: number) => void;
+  updateEmployee: (id: string, name: string, store: string, entitlement?: number) => void;
   removeEmployee: (id: string) => void;
   addAbsences: (employeeId: string, type: AbsenceRecord['type'], dates: string[]) => void;
   removeAbsence: (employeeId: string, date: string) => void;
@@ -37,7 +37,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       setData(prev => ({
         ...prev,
-        employees: (empRes.data || []).map(e => ({ id: e.id, name: e.name, store: e.store })),
+        employees: (empRes.data || []).map(e => ({ id: e.id, name: e.name, store: e.store, entitlement: e.entitlement ?? 28 })),
         absences: (absRes.data || []).map(a => ({ employeeId: a.employee_id, date: a.date, type: a.type as AbsenceType })),
         stores: (storeRes.data || []).map(s => s.name),
       }));
@@ -46,24 +46,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     fetchAll();
   }, []);
 
-  const addEmployee = useCallback(async (name: string, store: string) => {
+  const addEmployee = useCallback(async (name: string, store: string, entitlement: number = 28) => {
     const { data: inserted, error } = await supabase
       .from('employees')
-      .insert({ name, store })
+      .insert({ name, store, entitlement })
       .select()
       .single();
     if (error || !inserted) return;
     setData(prev => ({
       ...prev,
-      employees: [...prev.employees, { id: inserted.id, name: inserted.name, store: inserted.store }],
+      employees: [...prev.employees, { id: inserted.id, name: inserted.name, store: inserted.store, entitlement: inserted.entitlement ?? 28 }],
     }));
   }, []);
 
-  const updateEmployee = useCallback(async (id: string, name: string, store: string) => {
-    await supabase.from('employees').update({ name, store }).eq('id', id);
+  const updateEmployee = useCallback(async (id: string, name: string, store: string, entitlement: number = 28) => {
+    await supabase.from('employees').update({ name, store, entitlement }).eq('id', id);
     setData(prev => ({
       ...prev,
-      employees: prev.employees.map(e => (e.id === id ? { ...e, name, store } : e)),
+      employees: prev.employees.map(e => (e.id === id ? { ...e, name, store, entitlement } : e)),
     }));
   }, []);
 

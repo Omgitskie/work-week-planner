@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useAppData } from '@/context/AppContext';
 import { getUKBankHolidays } from '@/lib/store';
-import { UK_HOLIDAY_ENTITLEMENT } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export default function SummaryView() {
@@ -15,9 +14,7 @@ export default function SummaryView() {
       const holidays = empAbsences.filter(a => a.type === 'H').length;
       const sick = empAbsences.filter(a => a.type === 'S').length;
       const personal = empAbsences.filter(a => a.type === 'P').length;
-      // UK: 28 days statutory including bank holidays. Since employees work bank holidays,
-      // they get all 28 to use freely.
-      const entitlement = UK_HOLIDAY_ENTITLEMENT;
+      const entitlement = emp.entitlement;
       const remaining = entitlement - holidays;
 
       return { emp, holidays, sick, personal, entitlement, remaining };
@@ -30,7 +27,7 @@ export default function SummaryView() {
         <div>
           <h2 className="text-lg font-semibold">Summary & Balances — {data.year}</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            UK statutory entitlement: {UK_HOLIDAY_ENTITLEMENT} days (employees work bank holidays, so all 28 are freely usable). 
+            Entitlement is set per employee (default 28 days). 
             {bankHolidays.length} bank holidays in {data.year}.
           </p>
         </div>

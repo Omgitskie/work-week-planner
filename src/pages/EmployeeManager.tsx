@@ -11,18 +11,21 @@ export default function EmployeeManager() {
   const { data, addEmployee, updateEmployee, removeEmployee, addStore, removeStore } = useAppData();
   const [newName, setNewName] = useState('');
   const [newStore, setNewStore] = useState('');
+  const [newEntitlement, setNewEntitlement] = useState('28');
   const [newStoreName, setNewStoreName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editStore, setEditStore] = useState('');
+  const [editEntitlement, setEditEntitlement] = useState('28');
   const [showStoreManager, setShowStoreManager] = useState(false);
 
   const handleAdd = () => {
     if (!newName.trim() || !newStore) return;
-    addEmployee(newName.trim(), newStore);
+    addEmployee(newName.trim(), newStore, parseInt(newEntitlement) || 28);
     toast({ title: 'Employee added', description: newName.trim() });
     setNewName('');
     setNewStore('');
+    setNewEntitlement('28');
   };
 
   const handleEdit = (id: string) => {
@@ -31,12 +34,13 @@ export default function EmployeeManager() {
       setEditingId(id);
       setEditName(emp.name);
       setEditStore(emp.store);
+      setEditEntitlement(String(emp.entitlement));
     }
   };
 
   const handleSaveEdit = () => {
     if (editingId && editName.trim()) {
-      updateEmployee(editingId, editName.trim(), editStore);
+      updateEmployee(editingId, editName.trim(), editStore, parseInt(editEntitlement) || 28);
       setEditingId(null);
     }
   };
@@ -109,6 +113,15 @@ export default function EmployeeManager() {
             ))}
           </SelectContent>
         </Select>
+        <Input
+          type="number"
+          placeholder="Days"
+          value={newEntitlement}
+          onChange={e => setNewEntitlement(e.target.value)}
+          className="h-9 w-20"
+          min={0}
+          max={99}
+        />
         <Button onClick={handleAdd} disabled={!newName.trim() || !newStore}>
           <Plus className="w-4 h-4 mr-1.5" /> Add
         </Button>
@@ -120,6 +133,7 @@ export default function EmployeeManager() {
             <TableRow className="bg-grid-header">
               <TableHead>Name</TableHead>
               <TableHead>Store</TableHead>
+              <TableHead className="w-24">Entitlement</TableHead>
               <TableHead className="w-24 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -147,6 +161,13 @@ export default function EmployeeManager() {
                     </Select>
                   ) : (
                     <span className="text-muted-foreground">{emp.store}</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {editingId === emp.id ? (
+                    <Input type="number" value={editEntitlement} onChange={e => setEditEntitlement(e.target.value)} className="h-7 w-16 text-sm" min={0} max={99} />
+                  ) : (
+                    <span>{emp.entitlement}</span>
                   )}
                 </TableCell>
                 <TableCell className="text-right">

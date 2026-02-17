@@ -1,0 +1,1 @@
+ALTER TABLE public.employees ADD COLUMN entitlement integer NOT NULL DEFAULT 28;

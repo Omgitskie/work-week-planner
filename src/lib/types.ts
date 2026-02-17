@@ -4,6 +4,7 @@ export interface Employee {
   id: string;
   name: string;
   store: string;
+  entitlement: number;
 }
 
 export interface AbsenceRecord {

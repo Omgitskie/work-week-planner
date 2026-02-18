@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useAppData } from '@/context/AppContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Edit2, Check, X, Store } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Store, UserPlus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export default function EmployeeManager() {
   const { data, addEmployee, updateEmployee, removeEmployee, addStore, removeStore } = useAppData();
@@ -18,6 +20,10 @@ export default function EmployeeManager() {
   const [editStore, setEditStore] = useState('');
   const [editEntitlement, setEditEntitlement] = useState('28');
   const [showStoreManager, setShowStoreManager] = useState(false);
+  const [createAccountFor, setCreateAccountFor] = useState<string | null>(null);
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [creatingAccount, setCreatingAccount] = useState(false);
 
   const handleAdd = () => {
     if (!newName.trim() || !newStore) return;
@@ -54,6 +60,26 @@ export default function EmployeeManager() {
     addStore(newStoreName.trim());
     toast({ title: 'Store added', description: newStoreName.trim() });
     setNewStoreName('');
+  };
+
+  const handleCreateAccount = async () => {
+    if (!createAccountFor || !staffEmail.trim() || !staffPassword) return;
+    setCreatingAccount(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke('create-staff-account', {
+        body: { email: staffEmail.trim(), password: staffPassword, employeeId: createAccountFor },
+      });
+      if (error) throw error;
+      if (result?.error) throw new Error(result.error);
+      toast({ title: 'Staff account created', description: `Login created for ${staffEmail.trim()}` });
+      setCreateAccountFor(null);
+      setStaffEmail('');
+      setStaffPassword('');
+    } catch (err: any) {
+      toast({ title: 'Error creating account', description: err.message, variant: 'destructive' });
+    } finally {
+      setCreatingAccount(false);
+    }
   };
 
   return (
@@ -178,6 +204,9 @@ export default function EmployeeManager() {
                     </div>
                   ) : (
                     <div className="flex gap-1 justify-end">
+                      <Button size="sm" variant="ghost" onClick={() => { setCreateAccountFor(emp.id); setStaffEmail(''); setStaffPassword(''); }} title="Create login">
+                        <UserPlus className="w-4 h-4" />
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleEdit(emp.id)}><Edit2 className="w-4 h-4" /></Button>
                       <Button size="sm" variant="ghost" onClick={() => removeEmployee(emp.id)} className="hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
                     </div>
@@ -188,6 +217,35 @@ export default function EmployeeManager() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Create Staff Account Dialog */}
+      <Dialog open={!!createAccountFor} onOpenChange={open => { if (!open) setCreateAccountFor(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Staff Login</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Create a login for <strong>{data.employees.find(e => e.id === createAccountFor)?.name}</strong> so they can submit holiday requests.
+            </p>
+            <Input
+              type="email"
+              placeholder="Email address"
+              value={staffEmail}
+              onChange={e => setStaffEmail(e.target.value)}
+            />
+            <Input
+              type="password"
+              placeholder="Password"
+              value={staffPassword}
+              onChange={e => setStaffPassword(e.target.value)}
+            />
+            <Button className="w-full" onClick={handleCreateAccount} disabled={creatingAccount || !staffEmail.trim() || !staffPassword}>
+              {creatingAccount ? 'Creating...' : 'Create Account'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { CalendarDays, BarChart3, PlusCircle, Users, Download } from 'lucide-react';
+import { CalendarDays, BarChart3, PlusCircle, Users, Download, Inbox, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppData } from '@/context/AppContext';
+import { useAuth } from '@/hooks/useAuth';
 import { exportToCSV } from '@/lib/store';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -10,10 +11,12 @@ const tabs = [
   { to: '/summary', label: 'Summary', icon: BarChart3 },
   { to: '/book', label: 'Book Time Off', icon: PlusCircle },
   { to: '/employees', label: 'Employees', icon: Users },
+  { to: '/requests', label: 'Requests', icon: Inbox },
 ];
 
 export default function Layout() {
   const { data, setYear } = useAppData();
+  const { signOut } = useAuth();
 
   const handleExport = () => {
     const csv = exportToCSV(data);
@@ -65,6 +68,10 @@ export default function Layout() {
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-1.5" />
             Export CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={signOut}>
+            <LogOut className="w-4 h-4 mr-1.5" />
+            Sign Out
           </Button>
         </div>
       </header>

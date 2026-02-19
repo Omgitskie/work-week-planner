@@ -37,7 +37,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       setData(prev => ({
         ...prev,
-        employees: (empRes.data || []).map(e => ({ id: e.id, name: e.name, store: e.store, entitlement: e.entitlement ?? 28 })),
+        employees: (empRes.data || []).map(e => ({ id: e.id, name: e.name, store: e.store, entitlement: e.entitlement ?? 28, userId: e.user_id })),
         absences: (absRes.data || []).map(a => ({ employeeId: a.employee_id, date: a.date, type: a.type as AbsenceType })),
         stores: (storeRes.data || []).map(s => s.name),
       }));
@@ -55,7 +55,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (error || !inserted) return;
     setData(prev => ({
       ...prev,
-      employees: [...prev.employees, { id: inserted.id, name: inserted.name, store: inserted.store, entitlement: inserted.entitlement ?? 28 }],
+      employees: [...prev.employees, { id: inserted.id, name: inserted.name, store: inserted.store, entitlement: inserted.entitlement ?? 28, userId: inserted.user_id }],
     }));
   }, []);
 

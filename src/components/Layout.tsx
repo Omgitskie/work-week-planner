@@ -3,8 +3,9 @@ import { CalendarDays, BarChart3, PlusCircle, Users, Download, Inbox, LogOut } f
 import { Button } from '@/components/ui/button';
 import { useAppData } from '@/context/AppContext';
 import { useAuth } from '@/hooks/useAuth';
-import { exportToCSV } from '@/lib/store';
+import { exportCalendarCSV, exportSummaryCSV, downloadCSV } from '@/lib/exportUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const tabs = [
   { to: '/', label: 'Calendar', icon: CalendarDays },
@@ -18,15 +19,14 @@ export default function Layout() {
   const { data, setYear } = useAppData();
   const { signOut } = useAuth();
 
-  const handleExport = () => {
-    const csv = exportToCSV(data);
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `holiday-tracker-${data.year}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExportCalendar = () => {
+    const csv = exportCalendarCSV(data);
+    downloadCSV(csv, `holiday-calendar-${data.year}.csv`);
+  };
+
+  const handleExportSummary = () => {
+    const csv = exportSummaryCSV(data);
+    downloadCSV(csv, `holiday-summary-${data.year}.csv`);
   };
 
   return (
@@ -65,10 +65,24 @@ export default function Layout() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-1.5" />
-            Export CSV
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-1.5" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportCalendar}>
+                <CalendarDays className="w-4 h-4 mr-2" />
+                Export Calendar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportSummary}>
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Export Summary
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" size="sm" onClick={signOut}>
             <LogOut className="w-4 h-4 mr-1.5" />
             Sign Out

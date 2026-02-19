@@ -5,6 +5,7 @@ export interface Employee {
   name: string;
   store: string;
   entitlement: number;
+  userId?: string | null;
 }
 
 export interface AbsenceRecord {

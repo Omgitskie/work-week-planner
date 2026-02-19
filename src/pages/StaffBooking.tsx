@@ -24,6 +24,8 @@ export default function StaffBooking() {
   const { user, signOut } = useAuth();
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [employeeName, setEmployeeName] = useState('');
+  const [entitlement, setEntitlement] = useState(28);
+  const [usedDays, setUsedDays] = useState(0);
   const [type, setType] = useState<AbsenceType>('H');
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
@@ -36,22 +38,32 @@ export default function StaffBooking() {
       // Get employee record linked to this user
       const { data: emp } = await supabase
         .from('employees')
-        .select('id, name')
+        .select('id, name, entitlement')
         .eq('user_id', user.id)
         .single();
 
       if (emp) {
         setEmployeeId(emp.id);
         setEmployeeName(emp.name);
+        setEntitlement(emp.entitlement ?? 28);
 
-        // Load existing requests
-        const { data: reqs } = await supabase
-          .from('holiday_requests')
-          .select('*')
-          .eq('employee_id', emp.id)
-          .order('created_at', { ascending: false });
+        // Load existing requests and absences in parallel
+        const [reqsRes, absRes] = await Promise.all([
+          supabase
+            .from('holiday_requests')
+            .select('*')
+            .eq('employee_id', emp.id)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('absences')
+            .select('date, type')
+            .eq('employee_id', emp.id),
+        ]);
 
-        setRequests(reqs || []);
+        setRequests(reqsRes.data || []);
+        // Count used holiday days (type 'H')
+        const holidayDays = (absRes.data || []).filter(a => a.type === 'H').length;
+        setUsedDays(holidayDays);
       }
       setLoading(false);
     }
@@ -117,6 +129,25 @@ export default function StaffBooking() {
       </header>
 
       <div className="p-4 max-w-lg mx-auto space-y-6">
+        {/* Leave balance card */}
+        <div className="border rounded-lg p-4 bg-card">
+          <h3 className="text-sm font-semibold mb-3">Your Holiday Balance</h3>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-md bg-secondary p-3">
+              <p className="text-2xl font-bold text-foreground">{entitlement}</p>
+              <p className="text-xs text-muted-foreground">Total</p>
+            </div>
+            <div className="rounded-md bg-secondary p-3">
+              <p className="text-2xl font-bold text-foreground">{usedDays}</p>
+              <p className="text-xs text-muted-foreground">Used</p>
+            </div>
+            <div className="rounded-md bg-secondary p-3">
+              <p className={cn('text-2xl font-bold', entitlement - usedDays <= 3 ? 'text-destructive' : 'text-foreground')}>{entitlement - usedDays}</p>
+              <p className="text-xs text-muted-foreground">Remaining</p>
+            </div>
+          </div>
+        </div>
+
         <div>
           <h2 className="text-lg font-semibold mb-4">Request Time Off</h2>
           <form onSubmit={handleSubmit} className="space-y-4">

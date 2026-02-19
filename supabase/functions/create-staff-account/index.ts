@@ -52,7 +52,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, password, employeeId } = await req.json();
+    const { email, password, employeeId, role } = await req.json();
+    const assignRole = role === "admin" ? "admin" : "staff";
 
     if (!email || !password || !employeeId) {
       return new Response(JSON.stringify({ error: "Missing fields" }), {
@@ -75,10 +76,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Assign staff role
+    // Assign role
     await adminClient.from("user_roles").insert({
       user_id: newUser.user.id,
-      role: "staff",
+      role: assignRole,
     });
 
     // Link employee to auth user

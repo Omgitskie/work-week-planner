@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Edit2, Check, X, Store, UserPlus } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Store, UserPlus, ShieldCheck } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select as UISelect, SelectContent as UISelectContent, SelectItem as UISelectItem, SelectTrigger as UISelectTrigger, SelectValue as UISelectValue } from '@/components/ui/select';
 
 export default function EmployeeManager() {
   const { data, addEmployee, updateEmployee, removeEmployee, addStore, removeStore } = useAppData();
@@ -23,6 +24,7 @@ export default function EmployeeManager() {
   const [createAccountFor, setCreateAccountFor] = useState<string | null>(null);
   const [staffEmail, setStaffEmail] = useState('');
   const [staffPassword, setStaffPassword] = useState('');
+  const [accountRole, setAccountRole] = useState<'staff' | 'admin'>('staff');
   const [creatingAccount, setCreatingAccount] = useState(false);
 
   const handleAdd = () => {
@@ -67,14 +69,15 @@ export default function EmployeeManager() {
     setCreatingAccount(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('create-staff-account', {
-        body: { email: staffEmail.trim(), password: staffPassword, employeeId: createAccountFor },
+        body: { email: staffEmail.trim(), password: staffPassword, employeeId: createAccountFor, role: accountRole },
       });
       if (error) throw error;
       if (result?.error) throw new Error(result.error);
-      toast({ title: 'Staff account created', description: `Login created for ${staffEmail.trim()}` });
+      toast({ title: 'Account created', description: `${accountRole === 'admin' ? 'Admin' : 'Staff'} login created for ${staffEmail.trim()}` });
       setCreateAccountFor(null);
       setStaffEmail('');
       setStaffPassword('');
+      setAccountRole('staff');
     } catch (err: any) {
       toast({ title: 'Error creating account', description: err.message, variant: 'destructive' });
     } finally {
@@ -204,7 +207,7 @@ export default function EmployeeManager() {
                     </div>
                   ) : (
                     <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="ghost" onClick={() => { setCreateAccountFor(emp.id); setStaffEmail(''); setStaffPassword(''); }} title="Create login">
+                      <Button size="sm" variant="ghost" onClick={() => { setCreateAccountFor(emp.id); setStaffEmail(''); setStaffPassword(''); setAccountRole('staff'); }} title="Create login">
                         <UserPlus className="w-4 h-4" />
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleEdit(emp.id)}><Edit2 className="w-4 h-4" /></Button>
@@ -222,11 +225,11 @@ export default function EmployeeManager() {
       <Dialog open={!!createAccountFor} onOpenChange={open => { if (!open) setCreateAccountFor(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Staff Login</DialogTitle>
+            <DialogTitle>Create Login</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <p className="text-sm text-muted-foreground">
-              Create a login for <strong>{data.employees.find(e => e.id === createAccountFor)?.name}</strong> so they can submit holiday requests.
+              Create a login for <strong>{data.employees.find(e => e.id === createAccountFor)?.name}</strong>.
             </p>
             <Input
               type="email"
@@ -240,8 +243,26 @@ export default function EmployeeManager() {
               value={staffPassword}
               onChange={e => setStaffPassword(e.target.value)}
             />
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Role</label>
+              <Select value={accountRole} onValueChange={v => setAccountRole(v as 'staff' | 'admin')}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {accountRole === 'admin' && (
+              <div className="flex items-center gap-2 p-2 rounded-md bg-secondary text-sm text-muted-foreground">
+                <ShieldCheck className="w-4 h-4 shrink-0" />
+                This user will have full admin access to manage employees, stores, and approve requests.
+              </div>
+            )}
             <Button className="w-full" onClick={handleCreateAccount} disabled={creatingAccount || !staffEmail.trim() || !staffPassword}>
-              {creatingAccount ? 'Creating...' : 'Create Account'}
+              {creatingAccount ? 'Creating...' : `Create ${accountRole === 'admin' ? 'Admin' : 'Staff'} Account`}
             </Button>
           </div>
         </DialogContent>

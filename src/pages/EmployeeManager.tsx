@@ -64,8 +64,33 @@ export default function EmployeeManager() {
     setNewStoreName('');
   };
 
+  const selectedEmployee = data.employees.find(e => e.id === createAccountFor);
+  const hasExistingAccount = !!selectedEmployee?.userId;
+
   const handleCreateAccount = async () => {
-    if (!createAccountFor || !staffEmail.trim() || !staffPassword) return;
+    if (!createAccountFor || !staffPassword) return;
+
+    if (hasExistingAccount) {
+      // Update password
+      setCreatingAccount(true);
+      try {
+        const { data: result, error } = await supabase.functions.invoke('create-staff-account', {
+          body: { employeeId: createAccountFor, password: staffPassword, action: 'update-password' },
+        });
+        if (error) throw error;
+        if (result?.error) throw new Error(result.error);
+        toast({ title: 'Password updated', description: `Password updated for ${selectedEmployee?.name}` });
+        setCreateAccountFor(null);
+        setStaffPassword('');
+      } catch (err: any) {
+        toast({ title: 'Error updating password', description: err.message, variant: 'destructive' });
+      } finally {
+        setCreatingAccount(false);
+      }
+      return;
+    }
+
+    if (!staffEmail.trim()) return;
     setCreatingAccount(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('create-staff-account', {
@@ -207,7 +232,7 @@ export default function EmployeeManager() {
                     </div>
                   ) : (
                     <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="ghost" onClick={() => { setCreateAccountFor(emp.id); setStaffEmail(''); setStaffPassword(''); setAccountRole('staff'); }} title="Create login">
+                      <Button size="sm" variant="ghost" onClick={() => { setCreateAccountFor(emp.id); setStaffEmail(''); setStaffPassword(''); setAccountRole('staff'); }} title={emp.userId ? "Update password" : "Create login"}>
                         <UserPlus className="w-4 h-4" />
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleEdit(emp.id)}><Edit2 className="w-4 h-4" /></Button>
@@ -225,44 +250,60 @@ export default function EmployeeManager() {
       <Dialog open={!!createAccountFor} onOpenChange={open => { if (!open) setCreateAccountFor(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Login</DialogTitle>
+            <DialogTitle>{hasExistingAccount ? 'Update Password' : 'Create Login'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <p className="text-sm text-muted-foreground">
-              Create a login for <strong>{data.employees.find(e => e.id === createAccountFor)?.name}</strong>.
+              {hasExistingAccount
+                ? <>Update the password for <strong>{selectedEmployee?.name}</strong>.</>
+                : <>Create a login for <strong>{selectedEmployee?.name}</strong>.</>
+              }
             </p>
-            <Input
-              type="email"
-              placeholder="Email address"
-              value={staffEmail}
-              onChange={e => setStaffEmail(e.target.value)}
-            />
+            {!hasExistingAccount && (
+              <Input
+                type="email"
+                placeholder="Email address"
+                value={staffEmail}
+                onChange={e => setStaffEmail(e.target.value)}
+              />
+            )}
             <Input
               type="password"
-              placeholder="Password"
+              placeholder={hasExistingAccount ? "New password" : "Password"}
               value={staffPassword}
               onChange={e => setStaffPassword(e.target.value)}
             />
-            <div>
-              <label className="text-sm font-medium mb-1.5 block">Role</label>
-              <Select value={accountRole} onValueChange={v => setAccountRole(v as 'staff' | 'admin')}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="staff">Staff</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {accountRole === 'admin' && (
-              <div className="flex items-center gap-2 p-2 rounded-md bg-secondary text-sm text-muted-foreground">
-                <ShieldCheck className="w-4 h-4 shrink-0" />
-                This user will have full admin access to manage employees, stores, and approve requests.
-              </div>
+            {!hasExistingAccount && (
+              <>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Role</label>
+                  <Select value={accountRole} onValueChange={v => setAccountRole(v as 'staff' | 'admin')}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="staff">Staff</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {accountRole === 'admin' && (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-secondary text-sm text-muted-foreground">
+                    <ShieldCheck className="w-4 h-4 shrink-0" />
+                    This user will have full admin access to manage employees, stores, and approve requests.
+                  </div>
+                )}
+              </>
             )}
-            <Button className="w-full" onClick={handleCreateAccount} disabled={creatingAccount || !staffEmail.trim() || !staffPassword}>
-              {creatingAccount ? 'Creating...' : `Create ${accountRole === 'admin' ? 'Admin' : 'Staff'} Account`}
+            <Button
+              className="w-full"
+              onClick={handleCreateAccount}
+              disabled={creatingAccount || !staffPassword || (!hasExistingAccount && !staffEmail.trim())}
+            >
+              {creatingAccount
+                ? (hasExistingAccount ? 'Updating...' : 'Creating...')
+                : (hasExistingAccount ? 'Update Password' : `Create ${accountRole === 'admin' ? 'Admin' : 'Staff'} Account`)
+              }
             </Button>
           </div>
         </DialogContent>

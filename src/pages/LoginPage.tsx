@@ -17,13 +17,29 @@ export default function LoginPage() {
 
   useEffect(() => {
     async function check() {
-      const { data } = await supabase.functions.invoke('setup-admin', {
-        body: { email: '', password: '' },
-      });
-      // If response says admin exists, hide setup option
-      if (data?.error === 'An admin account already exists') {
+      try {
+        const { error } = await supabase.functions.invoke('setup-admin', {
+          body: { email: '', password: '' },
+        });
+        if (error) {
+          // For non-2xx responses, try to read the response body from the context
+          let msg = '';
+          try {
+            const ctx = (error as any)?.context;
+            if (ctx && typeof ctx.json === 'function') {
+              const body = await ctx.json();
+              msg = body?.error || '';
+            }
+          } catch {
+            msg = error.message || '';
+          }
+          if (msg.includes('already exists')) {
+            setAdminExists(true);
+            setSetupMode(false);
+          }
+        }
+      } catch {
         setAdminExists(true);
-        setSetupMode(false);
       }
       setCheckingSetup(false);
     }

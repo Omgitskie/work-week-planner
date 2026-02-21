@@ -6,6 +6,25 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function validatePassword(password: string): { valid: boolean; error?: string } {
+  if (!password || typeof password !== "string") {
+    return { valid: false, error: "Password is required" };
+  }
+  if (password.length < 8) {
+    return { valid: false, error: "Password must be at least 8 characters" };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, error: "Password must contain a lowercase letter" };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, error: "Password must contain an uppercase letter" };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, error: "Password must contain a number" };
+  }
+  return { valid: true };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -38,6 +57,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate password strength
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.valid) {
+      return new Response(
+        JSON.stringify({ error: pwCheck.error }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Create the admin user
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
@@ -64,7 +92,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: "An unexpected error occurred" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

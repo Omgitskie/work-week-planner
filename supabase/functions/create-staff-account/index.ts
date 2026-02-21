@@ -6,6 +6,25 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function validatePassword(password: string): { valid: boolean; error?: string } {
+  if (!password || typeof password !== "string") {
+    return { valid: false, error: "Password is required" };
+  }
+  if (password.length < 8) {
+    return { valid: false, error: "Password must be at least 8 characters" };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, error: "Password must contain a lowercase letter" };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, error: "Password must contain an uppercase letter" };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, error: "Password must contain a number" };
+  }
+  return { valid: true };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -51,16 +70,24 @@ Deno.serve(async (req) => {
 
     const { email, password, employeeId, role, action } = await req.json();
 
+    // Validate password strength
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.valid) {
+      return new Response(JSON.stringify({ error: pwCheck.error }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Update password for existing user
     if (action === "update-password") {
-      if (!employeeId || !password) {
+      if (!employeeId) {
         return new Response(JSON.stringify({ error: "Missing fields" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Get the user_id from the employee
       const { data: emp } = await adminClient
         .from("employees")
         .select("user_id")
@@ -95,7 +122,7 @@ Deno.serve(async (req) => {
     // Create new account
     const assignRole = role === "admin" ? "admin" : "staff";
 
-    if (!email || !password || !employeeId) {
+    if (!email || !employeeId) {
       return new Response(JSON.stringify({ error: "Missing fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -130,7 +157,7 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
+    return new Response(JSON.stringify({ error: "An unexpected error occurred" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

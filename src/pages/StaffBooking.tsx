@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, CheckCircle, Clock, LogOut } from 'lucide-react';
-import { format } from 'date-fns';
+import { CalendarIcon, CheckCircle, Clock, LogOut, Pencil, X, Ban } from 'lucide-react';
+import { format, addWeeks, isAfter, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { ABSENCE_LABELS, AbsenceType } from '@/lib/types';
@@ -32,10 +32,15 @@ export default function StaffBooking() {
   const [requests, setRequests] = useState<HolidayRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Editing state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editType, setEditType] = useState<AbsenceType>('H');
+  const [editStart, setEditStart] = useState<Date>();
+  const [editEnd, setEditEnd] = useState<Date>();
+
   useEffect(() => {
     async function load() {
       if (!user) return;
-      // Get employee record linked to this user
       const { data: emp } = await supabase
         .from('employees')
         .select('id, name, entitlement')
@@ -47,7 +52,6 @@ export default function StaffBooking() {
         setEmployeeName(emp.name);
         setEntitlement(emp.entitlement ?? 28);
 
-        // Load existing requests and absences in parallel
         const [reqsRes, absRes] = await Promise.all([
           supabase
             .from('holiday_requests')
@@ -61,7 +65,6 @@ export default function StaffBooking() {
         ]);
 
         setRequests(reqsRes.data || []);
-        // Count used holiday days (type 'H')
         const holidayDays = (absRes.data || []).filter(a => a.type === 'H').length;
         setUsedDays(holidayDays);
       }
@@ -96,6 +99,87 @@ export default function StaffBooking() {
     setEndDate(undefined);
   };
 
+  const startEditing = (req: HolidayRequest) => {
+    setEditingId(req.id);
+    setEditType(req.type as AbsenceType);
+    setEditStart(parseISO(req.start_date));
+    setEditEnd(parseISO(req.end_date));
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditStart(undefined);
+    setEditEnd(undefined);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId || !editStart || !editEnd) return;
+
+    const { error } = await supabase
+      .from('holiday_requests')
+      .update({
+        type: editType,
+        start_date: format(editStart, 'yyyy-MM-dd'),
+        end_date: format(editEnd, 'yyyy-MM-dd'),
+      })
+      .eq('id', editingId);
+
+    if (error) {
+      toast({ title: 'Error updating request', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    setRequests(prev =>
+      prev.map(r =>
+        r.id === editingId
+          ? { ...r, type: editType, start_date: format(editStart, 'yyyy-MM-dd'), end_date: format(editEnd, 'yyyy-MM-dd') }
+          : r
+      )
+    );
+    toast({ title: 'Request updated' });
+    cancelEditing();
+  };
+
+  const canRequestCancellation = (req: HolidayRequest): { allowed: boolean; reason?: string } => {
+    const today = new Date();
+    const startDt = parseISO(req.start_date);
+    const endDt = parseISO(req.end_date);
+
+    // If end date already passed, can't cancel
+    if (!isAfter(endDt, today)) {
+      return { allowed: false, reason: 'Dates have already passed' };
+    }
+
+    // If start date is within 4 weeks, can't cancel
+    const fourWeeksFromNow = addWeeks(today, 4);
+    if (!isAfter(startDt, fourWeeksFromNow)) {
+      return { allowed: false, reason: 'Cannot cancel within 4 weeks of start date' };
+    }
+
+    return { allowed: true };
+  };
+
+  const handleRequestCancellation = async (req: HolidayRequest) => {
+    const check = canRequestCancellation(req);
+    if (!check.allowed) {
+      toast({ title: 'Cannot cancel', description: check.reason, variant: 'destructive' });
+      return;
+    }
+
+    const { error } = await supabase
+      .from('holiday_requests')
+      .update({ status: 'cancel_pending' })
+      .eq('id', req.id);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    setRequests(prev => prev.map(r => (r.id === req.id ? { ...r, status: 'cancel_pending' } : r)));
+    toast({ title: 'Cancellation requested', description: 'Your manager will review this.' });
+  };
+
   if (loading) return <div className="flex items-center justify-center h-screen text-muted-foreground">Loading...</div>;
 
   if (!employeeId) {
@@ -114,6 +198,16 @@ export default function StaffBooking() {
     pending: 'bg-personal/20 text-personal-foreground',
     approved: 'bg-holiday/20 text-holiday-foreground',
     rejected: 'bg-destructive/10 text-destructive',
+    cancel_pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+    cancelled: 'bg-muted text-muted-foreground',
+  };
+
+  const statusLabels: Record<string, string> = {
+    pending: 'pending',
+    approved: 'approved',
+    rejected: 'rejected',
+    cancel_pending: 'cancellation pending',
+    cancelled: 'cancelled',
   };
 
   return (
@@ -210,18 +304,92 @@ export default function StaffBooking() {
             <p className="text-sm text-muted-foreground">No requests yet.</p>
           ) : (
             <div className="space-y-2">
-              {requests.map(r => (
-                <div key={r.id} className="border rounded-lg p-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">{ABSENCE_LABELS[r.type as AbsenceType] || r.type}</p>
-                    <p className="text-xs text-muted-foreground">{r.start_date} → {r.end_date}</p>
+              {requests.map(r => {
+                const isEditing = editingId === r.id;
+
+                if (isEditing) {
+                  return (
+                    <div key={r.id} className="border rounded-lg p-3 space-y-3 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">Edit Request</p>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={cancelEditing}>
+                          <X className="w-3.5 h-3.5 mr-1" /> Cancel
+                        </Button>
+                      </div>
+                      <Select value={editType} onValueChange={v => setEditType(v as AbsenceType)}>
+                        <SelectTrigger className="w-full h-8 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="H">Holiday</SelectItem>
+                          <SelectItem value="S">Sick</SelectItem>
+                          <SelectItem value="P">Personal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className={cn('w-full justify-start text-left text-xs h-8', !editStart && 'text-muted-foreground')}>
+                              <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                              {editStart ? format(editStart, 'dd/MM/yy') : 'Start'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={editStart} onSelect={setEditStart} initialFocus className="p-3 pointer-events-auto" />
+                          </PopoverContent>
+                        </Popover>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className={cn('w-full justify-start text-left text-xs h-8', !editEnd && 'text-muted-foreground')}>
+                              <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                              {editEnd ? format(editEnd, 'dd/MM/yy') : 'End'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={editEnd} onSelect={setEditEnd} initialFocus className="p-3 pointer-events-auto" />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <Button size="sm" className="w-full h-8 text-xs" onClick={handleSaveEdit} disabled={!editStart || !editEnd}>
+                        <CheckCircle className="w-3.5 h-3.5 mr-1" /> Save Changes
+                      </Button>
+                    </div>
+                  );
+                }
+
+                const cancelCheck = r.status === 'approved' ? canRequestCancellation(r) : null;
+
+                return (
+                  <div key={r.id} className="border rounded-lg p-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{ABSENCE_LABELS[r.type as AbsenceType] || r.type}</p>
+                      <p className="text-xs text-muted-foreground">{r.start_date} → {r.end_date}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {r.status === 'pending' && (
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => startEditing(r)} title="Edit request">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                      {r.status === 'approved' && cancelCheck?.allowed && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs hover:text-destructive"
+                          onClick={() => handleRequestCancellation(r)}
+                          title="Request cancellation"
+                        >
+                          <Ban className="w-3.5 h-3.5 mr-1" /> Cancel
+                        </Button>
+                      )}
+                      <span className={cn('text-xs px-2 py-1 rounded-full font-medium capitalize', statusColors[r.status] || '')}>
+                        {r.status === 'pending' && <Clock className="w-3 h-3 inline mr-1" />}
+                        {statusLabels[r.status] || r.status}
+                      </span>
+                    </div>
                   </div>
-                  <span className={cn('text-xs px-2 py-1 rounded-full font-medium capitalize', statusColors[r.status] || '')}>
-                    {r.status === 'pending' && <Clock className="w-3 h-3 inline mr-1" />}
-                    {r.status}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

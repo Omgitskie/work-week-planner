@@ -13,16 +13,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [setupMode, setSetupMode] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
+  const [adminExists, setAdminExists] = useState(false);
 
   useEffect(() => {
-    // Check if any admin exists
     async function check() {
       const { data } = await supabase.functions.invoke('setup-admin', {
         body: { email: '', password: '' },
       });
-      // If we get "Email and password required", no admin exists yet
-      // If we get "An admin account already exists", setup is done
-      // We'll just show setup option always, the endpoint will reject if admin exists
+      // If response says admin exists, hide setup option
+      if (data?.error === 'An admin account already exists') {
+        setAdminExists(true);
+        setSetupMode(false);
+      }
       setCheckingSetup(false);
     }
     check();
@@ -90,12 +92,14 @@ export default function LoginPage() {
             {loading ? (setupMode ? 'Creating...' : 'Signing in...') : (setupMode ? 'Create Admin Account' : 'Sign In')}
           </Button>
         </form>
-        <button
-          onClick={() => setSetupMode(!setupMode)}
-          className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
-        >
-          {setupMode ? 'Already have an account? Sign in' : 'First time? Set up admin account'}
-        </button>
+        {!adminExists && (
+          <button
+            onClick={() => setSetupMode(!setupMode)}
+            className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+          >
+            {setupMode ? 'Already have an account? Sign in' : 'First time? Set up admin account'}
+          </button>
+        )}
       </div>
     </div>
   );

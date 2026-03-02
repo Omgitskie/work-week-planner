@@ -33,7 +33,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        await fetchRole(u.id);
+        try {
+          await fetchRole(u.id);
+        } catch {
+          setRole(null);
+        }
       } else {
         setRole(null);
       }
@@ -44,7 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = session?.user ?? null;
       setUser(u);
       if (u) {
-        await fetchRole(u.id);
+        try {
+          await fetchRole(u.id);
+        } catch {
+          setRole(null);
+        }
       }
       setLoading(false);
     });

@@ -12,6 +12,7 @@ export interface AbsenceRecord {
   employeeId: string;
   date: string; // YYYY-MM-DD
   type: AbsenceType;
+  halfDay: boolean;
 }
 
 export interface AppData {

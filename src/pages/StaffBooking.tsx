@@ -10,6 +10,7 @@ import { format, addWeeks, isAfter, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { ABSENCE_LABELS, AbsenceType } from '@/lib/types';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface HolidayRequest {
   id: string;
@@ -18,6 +19,7 @@ interface HolidayRequest {
   end_date: string;
   status: string;
   created_at: string;
+  half_day: boolean;
 }
 
 export default function StaffBooking() {
@@ -29,6 +31,7 @@ export default function StaffBooking() {
   const [type, setType] = useState<AbsenceType>('H');
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
+  const [halfDay, setHalfDay] = useState(false);
   const [requests, setRequests] = useState<HolidayRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -65,7 +68,7 @@ export default function StaffBooking() {
         ]);
 
         setRequests(reqsRes.data || []);
-        const holidayDays = (absRes.data || []).filter(a => a.type === 'H').length;
+        const holidayDays = (absRes.data || []).filter(a => a.type === 'H').reduce((sum, a) => sum + ((a as any).half_day ? 0.5 : 1), 0);
         setUsedDays(holidayDays);
       }
       setLoading(false);
@@ -84,6 +87,7 @@ export default function StaffBooking() {
         type,
         start_date: format(startDate, 'yyyy-MM-dd'),
         end_date: format(endDate, 'yyyy-MM-dd'),
+        half_day: halfDay,
       })
       .select()
       .single();
@@ -97,6 +101,7 @@ export default function StaffBooking() {
     if (inserted) setRequests(prev => [inserted, ...prev]);
     setStartDate(undefined);
     setEndDate(undefined);
+    setHalfDay(false);
   };
 
   const startEditing = (req: HolidayRequest) => {
@@ -290,6 +295,11 @@ export default function StaffBooking() {
               </div>
             </div>
 
+            <div className="flex items-center space-x-2">
+              <Checkbox id="staff-half-day" checked={halfDay} onCheckedChange={(checked) => setHalfDay(checked === true)} />
+              <label htmlFor="staff-half-day" className="text-sm font-medium cursor-pointer">Half day (0.5)</label>
+            </div>
+
             <Button type="submit" className="w-full" disabled={!startDate || !endDate}>
               <CheckCircle className="w-4 h-4 mr-2" />
               Submit Request
@@ -362,7 +372,10 @@ export default function StaffBooking() {
                 return (
                   <div key={r.id} className="border rounded-lg p-3 flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium">{ABSENCE_LABELS[r.type as AbsenceType] || r.type}</p>
+                      <p className="text-sm font-medium">
+                        {ABSENCE_LABELS[r.type as AbsenceType] || r.type}
+                        {r.half_day && <span className="ml-1 text-xs text-muted-foreground">(½ day)</span>}
+                      </p>
                       <p className="text-xs text-muted-foreground">{r.start_date} → {r.end_date}</p>
                     </div>
                     <div className="flex items-center gap-2">

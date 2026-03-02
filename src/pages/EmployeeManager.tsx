@@ -29,7 +29,7 @@ export default function EmployeeManager() {
 
   const handleAdd = () => {
     if (!newName.trim() || !newStore) return;
-    addEmployee(newName.trim(), newStore, parseInt(newEntitlement) || 28);
+    addEmployee(newName.trim(), newStore, parseFloat(newEntitlement) || 28);
     toast({ title: 'Employee added', description: newName.trim() });
     setNewName('');
     setNewStore('');
@@ -48,7 +48,7 @@ export default function EmployeeManager() {
 
   const handleSaveEdit = () => {
     if (editingId && editName.trim()) {
-      updateEmployee(editingId, editName.trim(), editStore, parseInt(editEntitlement) || 28);
+      updateEmployee(editingId, editName.trim(), editStore, parseFloat(editEntitlement) || 28);
       setEditingId(null);
     }
   };
@@ -175,6 +175,7 @@ export default function EmployeeManager() {
           className="h-9 w-20"
           min={0}
           max={99}
+          step="0.5"
         />
         <Button onClick={handleAdd} disabled={!newName.trim() || !newStore}>
           <Plus className="w-4 h-4 mr-1.5" /> Add
@@ -219,7 +220,7 @@ export default function EmployeeManager() {
                 </TableCell>
                 <TableCell>
                   {editingId === emp.id ? (
-                    <Input type="number" value={editEntitlement} onChange={e => setEditEntitlement(e.target.value)} className="h-7 w-16 text-sm" min={0} max={99} />
+                    <Input type="number" value={editEntitlement} onChange={e => setEditEntitlement(e.target.value)} className="h-7 w-16 text-sm" min={0} max={99} step="0.5" />
                   ) : (
                     <span>{emp.entitlement}</span>
                   )}

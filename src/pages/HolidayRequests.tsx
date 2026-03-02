@@ -17,6 +17,7 @@ interface PendingRequest {
   end_date: string;
   status: string;
   created_at: string;
+  half_day: boolean;
 }
 
 export default function HolidayRequests() {
@@ -97,7 +98,7 @@ export default function HolidayRequests() {
       return;
     }
 
-    addAbsences(req.employee_id, req.type as AbsenceType, dates);
+    addAbsences(req.employee_id, req.type as AbsenceType, dates, req.half_day ?? false);
 
     await supabase
       .from('holiday_requests')
@@ -106,7 +107,7 @@ export default function HolidayRequests() {
 
     setRequests(prev => prev.filter(r => r.id !== req.id));
     const emp = data.employees.find(e => e.id === req.employee_id);
-    toast({ title: 'Request approved', description: `${dates.length} day(s) added for ${emp?.name}` });
+    toast({ title: 'Request approved', description: `${req.half_day ? dates.length * 0.5 : dates.length} day(s) added for ${emp?.name}` });
   };
 
   const handleReject = async (req: PendingRequest) => {
@@ -251,6 +252,7 @@ function RequestTable({ requests, employees, clashes, onAccept, onReject, isCanc
                 </TableCell>
                 <TableCell className="text-sm">
                   {req.start_date} → {req.end_date}
+                  {req.half_day && <span className="ml-1.5 text-xs text-muted-foreground">(½ day)</span>}
                 </TableCell>
                 {!isCancellation && (
                   <TableCell>

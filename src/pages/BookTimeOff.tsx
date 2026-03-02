@@ -10,6 +10,7 @@ import { CalendarIcon, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function BookTimeOff() {
   const { data, addAbsences } = useAppData();
@@ -17,6 +18,7 @@ export default function BookTimeOff() {
   const [type, setType] = useState<AbsenceType>('H');
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
+  const [halfDay, setHalfDay] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,14 +39,16 @@ export default function BookTimeOff() {
       return;
     }
 
-    addAbsences(employeeId, type, dates);
+    addAbsences(employeeId, type, dates, halfDay);
     const emp = data.employees.find(e => e.id === employeeId);
+    const dayCount = halfDay ? dates.length * 0.5 : dates.length;
     toast({
       title: 'Time off booked',
-      description: `${dates.length} day(s) of ${ABSENCE_LABELS[type]} for ${emp?.name}`,
+      description: `${dayCount} day(s) of ${ABSENCE_LABELS[type]} for ${emp?.name}`,
     });
     setStartDate(undefined);
     setEndDate(undefined);
+    setHalfDay(false);
   };
 
   return (
@@ -120,6 +124,11 @@ export default function BookTimeOff() {
               </PopoverContent>
             </Popover>
           </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox id="half-day" checked={halfDay} onCheckedChange={(checked) => setHalfDay(checked === true)} />
+          <label htmlFor="half-day" className="text-sm font-medium cursor-pointer">Half day (0.5)</label>
         </div>
 
         <Button type="submit" className="w-full" disabled={!employeeId || !startDate || !endDate}>

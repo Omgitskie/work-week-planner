@@ -8,7 +8,7 @@ interface AppContextType {
   addEmployee: (name: string, store: string, entitlement?: number) => void;
   updateEmployee: (id: string, name: string, store: string, entitlement?: number) => void;
   removeEmployee: (id: string) => void;
-  addAbsences: (employeeId: string, type: AbsenceRecord['type'], dates: string[]) => void;
+  addAbsences: (employeeId: string, type: AbsenceRecord['type'], dates: string[], halfDay?: boolean) => void;
   removeAbsence: (employeeId: string, date: string) => void;
   addStore: (store: string) => void;
   removeStore: (store: string) => void;
@@ -38,7 +38,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setData(prev => ({
         ...prev,
         employees: (empRes.data || []).map(e => ({ id: e.id, name: e.name, store: e.store, entitlement: e.entitlement ?? 28, userId: e.user_id })),
-        absences: (absRes.data || []).map(a => ({ employeeId: a.employee_id, date: a.date, type: a.type as AbsenceType })),
+        absences: (absRes.data || []).map(a => ({ employeeId: a.employee_id, date: a.date, type: a.type as AbsenceType, halfDay: !!(a as any).half_day })),
         stores: (storeRes.data || []).map(s => s.name),
       }));
       setLoading(false);
@@ -77,19 +77,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
-  const addAbsences = useCallback(async (employeeId: string, type: AbsenceRecord['type'], dates: string[]) => {
+  const addAbsences = useCallback(async (employeeId: string, type: AbsenceRecord['type'], dates: string[], halfDay: boolean = false) => {
     // Upsert absences (unique on employee_id + date)
-    const rows = dates.map(d => ({ employee_id: employeeId, date: d, type }));
+    const rows = dates.map(d => ({ employee_id: employeeId, date: d, type, half_day: halfDay }));
     await supabase.from('absences').upsert(rows, { onConflict: 'employee_id,date' });
 
     setData(prev => {
       const existing = new Set(prev.absences.filter(a => a.employeeId === employeeId).map(a => a.date));
       const newAbsences = dates
         .filter(d => !existing.has(d))
-        .map(d => ({ employeeId, date: d, type }));
+        .map(d => ({ employeeId, date: d, type, halfDay }));
       const updatedAbsences = prev.absences.map(a => {
         if (a.employeeId === employeeId && dates.includes(a.date)) {
-          return { ...a, type };
+          return { ...a, type, halfDay };
         }
         return a;
       });

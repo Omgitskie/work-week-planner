@@ -11,9 +11,9 @@ export default function SummaryView() {
   const summaries = useMemo(() => {
     return data.employees.map(emp => {
       const empAbsences = data.absences.filter(a => a.employeeId === emp.id);
-      const holidays = empAbsences.filter(a => a.type === 'H').length;
-      const sick = empAbsences.filter(a => a.type === 'S').length;
-      const personal = empAbsences.filter(a => a.type === 'P').length;
+      const holidays = empAbsences.filter(a => a.type === 'H').reduce((sum, a) => sum + (a.halfDay ? 0.5 : 1), 0);
+      const sick = empAbsences.filter(a => a.type === 'S').reduce((sum, a) => sum + (a.halfDay ? 0.5 : 1), 0);
+      const personal = empAbsences.filter(a => a.type === 'P').reduce((sum, a) => sum + (a.halfDay ? 0.5 : 1), 0);
       const entitlement = emp.entitlement;
       const remaining = entitlement - holidays;
 

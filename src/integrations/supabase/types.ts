@@ -19,6 +19,7 @@ export type Database = {
           created_at: string
           date: string
           employee_id: string
+          half_day: boolean
           id: string
           type: string
         }
@@ -26,6 +27,7 @@ export type Database = {
           created_at?: string
           date: string
           employee_id: string
+          half_day?: boolean
           id?: string
           type: string
         }
@@ -33,6 +35,7 @@ export type Database = {
           created_at?: string
           date?: string
           employee_id?: string
+          half_day?: boolean
           id?: string
           type?: string
         }
@@ -78,6 +81,7 @@ export type Database = {
           created_at: string
           employee_id: string
           end_date: string
+          half_day: boolean
           id: string
           reviewed_at: string | null
           reviewed_by: string | null
@@ -89,6 +93,7 @@ export type Database = {
           created_at?: string
           employee_id: string
           end_date: string
+          half_day?: boolean
           id?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -100,6 +105,7 @@ export type Database = {
           created_at?: string
           employee_id?: string
           end_date?: string
+          half_day?: boolean
           id?: string
           reviewed_at?: string | null
           reviewed_by?: string | null

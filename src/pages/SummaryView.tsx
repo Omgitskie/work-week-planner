@@ -1,10 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAppData } from '@/context/AppContext';
 import { getUKBankHolidays } from '@/lib/store';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
 
 export default function SummaryView() {
   const { data } = useAppData();
+  const [search, setSearch] = useState('');
 
   const bankHolidays = useMemo(() => getUKBankHolidays(data.year), [data.year]);
 
@@ -21,6 +24,12 @@ export default function SummaryView() {
     });
   }, [data.employees, data.absences, data.year]);
 
+  const filtered = useMemo(() => {
+    if (!search.trim()) return summaries;
+    const q = search.toLowerCase();
+    return summaries.filter(s => s.emp.name.toLowerCase().includes(q));
+  }, [summaries, search]);
+
   return (
     <div className="p-4 overflow-auto h-full">
       <div className="mb-4 flex items-center justify-between">
@@ -30,6 +39,15 @@ export default function SummaryView() {
             Entitlement is set per employee (default 28 days). 
             {bankHolidays.length} bank holidays in {data.year}.
           </p>
+        </div>
+        <div className="relative w-64">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 h-8 text-sm"
+          />
         </div>
       </div>
 
@@ -59,7 +77,7 @@ export default function SummaryView() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {summaries.map(({ emp, holidays, sick, personal, entitlement, remaining }) => (
+            {filtered.map(({ emp, holidays, sick, personal, entitlement, remaining }) => (
               <TableRow key={emp.id}>
                 <TableCell className="font-medium">{emp.name}</TableCell>
                 <TableCell className="text-muted-foreground">{emp.store}</TableCell>

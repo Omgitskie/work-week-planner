@@ -144,3 +144,7 @@
     background-color: hsl(var(--weekend-bg));
   }
 }
+
+.lovable-badge {
+  display: none !important;
+}

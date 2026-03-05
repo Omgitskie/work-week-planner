@@ -70,6 +70,14 @@ Deno.serve(async (req) => {
 
     const { email, password, employeeId, role, action } = await req.json();
 
+    // Validate email format
+    if (email && (typeof email !== "string" || email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+      return new Response(JSON.stringify({ error: "Invalid email format" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Validate password strength
     const pwCheck = validatePassword(password);
     if (!pwCheck.valid) {
@@ -107,7 +115,8 @@ Deno.serve(async (req) => {
       );
 
       if (updateError) {
-        return new Response(JSON.stringify({ error: updateError.message }), {
+        console.error("Update password error:", updateError);
+        return new Response(JSON.stringify({ error: "Unable to update password. Please try again." }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -136,7 +145,11 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
-      return new Response(JSON.stringify({ error: createError.message }), {
+      console.error("Create user error:", createError);
+      const safeMsg = createError.message?.includes("already been registered")
+        ? "An account with this email already exists"
+        : "Unable to create account. Please try again.";
+      return new Response(JSON.stringify({ error: safeMsg }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

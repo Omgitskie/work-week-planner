@@ -47,9 +47,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addEmployee = useCallback(async (name: string, store: string, entitlement: number = 28) => {
+    const trimmedName = name.trim().slice(0, 100);
+    const trimmedStore = store.trim().slice(0, 50);
+    const clampedEntitlement = Math.max(0, Math.min(365, Math.round(entitlement)));
+    if (!trimmedName || !trimmedStore) return;
     const { data: inserted, error } = await supabase
       .from('employees')
-      .insert({ name, store, entitlement })
+      .insert({ name: trimmedName, store: trimmedStore, entitlement: clampedEntitlement })
       .select()
       .single();
     if (error || !inserted) return;
@@ -60,7 +64,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateEmployee = useCallback(async (id: string, name: string, store: string, entitlement: number = 28) => {
-    await supabase.from('employees').update({ name, store, entitlement }).eq('id', id);
+    const trimmedName = name.trim().slice(0, 100);
+    const trimmedStore = store.trim().slice(0, 50);
+    const clampedEntitlement = Math.max(0, Math.min(365, Math.round(entitlement)));
+    if (!trimmedName || !trimmedStore) return;
+    await supabase.from('employees').update({ name: trimmedName, store: trimmedStore, entitlement: clampedEntitlement }).eq('id', id);
     setData(prev => ({
       ...prev,
       employees: prev.employees.map(e => (e.id === id ? { ...e, name, store, entitlement } : e)),
@@ -78,8 +86,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addAbsences = useCallback(async (employeeId: string, type: AbsenceRecord['type'], dates: string[], halfDay: boolean = false) => {
+    // Validate dates format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const validDates = dates.filter(d => dateRegex.test(d));
+    if (validDates.length === 0) return;
     // Upsert absences (unique on employee_id + date)
-    const rows = dates.map(d => ({ employee_id: employeeId, date: d, type, half_day: halfDay }));
+    const rows = validDates.map(d => ({ employee_id: employeeId, date: d, type, half_day: halfDay }));
     await supabase.from('absences').upsert(rows, { onConflict: 'employee_id,date' });
 
     setData(prev => {
@@ -106,7 +118,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addStore = useCallback(async (store: string) => {
-    await supabase.from('stores').insert({ name: store });
+    const trimmed = store.trim().slice(0, 50);
+    if (!trimmed) return;
+    await supabase.from('stores').insert({ name: trimmed });
     setData(prev => ({
       ...prev,
       stores: [...prev.stores, store],

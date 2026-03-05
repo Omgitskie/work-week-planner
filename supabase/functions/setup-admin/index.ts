@@ -57,6 +57,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate email format
+    if (typeof email !== "string" || email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid email format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Validate password strength
     const pwCheck = validatePassword(password);
     if (!pwCheck.valid) {
@@ -74,8 +82,12 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
+      console.error("Setup admin create error:", createError);
+      const safeMsg = createError.message?.includes("already been registered")
+        ? "An account with this email already exists"
+        : "Unable to create account. Please try again.";
       return new Response(
-        JSON.stringify({ error: createError.message }),
+        JSON.stringify({ error: safeMsg }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

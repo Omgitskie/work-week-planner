@@ -30,6 +30,15 @@ function AppRoutes() {
 
   if (!user) return <LoginPage />;
 
+  // Wait for role to be determined before rendering role-specific UI
+  if (!role) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+        Loading...
+      </div>
+    );
+  }
+
   // Staff users see only the booking page
   if (role === 'staff') return <StaffBooking />;
 
